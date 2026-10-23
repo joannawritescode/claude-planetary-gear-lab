@@ -1,0 +1,418 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Planetary Gear Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: service-manual workbench. Gearset stage on the left, setup + readout on the right, combination chart below. */
+:root{
+  --bg:#ECEFF2; --surface:#F8F9FA; --ink:#1A2027; --muted:#56616D; --line:#CBD2DA; --accent:#1F5FA8;
+  --sun:#B8740F; --sun-fill:#F2C878;
+  --planet:#2E7A4B; --planet-fill:#9FD4AF;
+  --carrier:#245EA3; --carrier-fill:#BCD3EE;
+  --ring:#A23D31; --ring-fill:#E6AAA1;
+  --hatch:#1A2027;
+  --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"Barlow","Segoe UI",Helvetica,Arial,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11151A; --surface:#181D24; --ink:#E4E8EC; --muted:#97A2AE; --line:#2B333D; --accent:#6EA5E6;
+  --sun:#EBA94A; --sun-fill:#6B4A16; --planet:#62BF84; --planet-fill:#1F4A30;
+  --carrier:#6EA5E6; --carrier-fill:#1E3550; --ring:#E07B6C; --ring-fill:#5A2620; --hatch:#E4E8EC;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11151A; --surface:#181D24; --ink:#E4E8EC; --muted:#97A2AE; --line:#2B333D; --accent:#6EA5E6;
+  --sun:#EBA94A; --sun-fill:#6B4A16; --planet:#62BF84; --planet-fill:#1F4A30;
+  --carrier:#6EA5E6; --carrier-fill:#1E3550; --ring:#E07B6C; --ring-fill:#5A2620; --hatch:#E4E8EC;
+  color-scheme:dark}
+
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-block:28px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:28px}
+header{display:flex;flex-direction:column;gap:6px;max-width:68ch}
+.eyebrow{font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(34px,5vw,48px);line-height:1;margin:0;text-wrap:balance;letter-spacing:-.01em}
+.lede{color:var(--muted);margin:4px 0 0}
+
+.bench{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:860px){.bench{grid-template-columns:minmax(0,1fr)}}
+
+.stage{display:flex;flex-direction:column;gap:12px;min-width:0}
+.canvas-box{position:relative;width:100%;max-width:640px;aspect-ratio:1/1;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:6px}
+canvas{display:block;width:100%;height:100%}
+.playbar{display:flex;flex-wrap:wrap;align-items:center;gap:14px;max-width:640px;width:100%;margin:0 auto}
+.playbar label{font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.playbar input[type=range]{flex:1;min-width:120px;accent-color:var(--accent)}
+.btn{font:600 14px/1 var(--f-body);padding:10px 16px;border-radius:4px;border:1px solid var(--ink);background:var(--ink);color:var(--bg);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn:focus-visible,.seg input:focus-visible+span,.load:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.panel{display:flex;flex-direction:column;gap:22px;min-width:0}
+.step{display:flex;flex-direction:column;gap:8px}
+.step-h{display:flex;align-items:baseline;gap:10px;font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:.08em;text-transform:uppercase}
+.step-h .n{font-family:var(--f-mono);font-size:12px;color:var(--muted);letter-spacing:0}
+.seg{display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:5px;overflow:hidden;background:var(--surface)}
+.seg label{flex:1 1 auto;position:relative;min-width:0}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span{display:flex;align-items:center;justify-content:center;gap:7px;padding:10px 12px;font-weight:500;cursor:pointer;border-right:1px solid var(--line);white-space:nowrap;height:100%;box-sizing:border-box}
+.seg label:last-child span{border-right:0}
+.seg input:checked+span{background:var(--ink);color:var(--bg)}
+.sw{width:10px;height:10px;border-radius:2px;flex:none}
+.out-line{font-size:14px;color:var(--muted)}
+.out-line b{color:var(--ink);font-weight:600}
+
+.result{border-top:2px solid var(--ink);padding-top:14px;display:flex;flex-direction:column;gap:10px}
+.r-top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px}
+.r-mode{font-family:var(--f-display);font-weight:700;font-size:30px;line-height:1.05;text-wrap:balance}
+.r-ratio{font-family:var(--f-mono);font-size:22px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+.r-ratio small{font-family:var(--f-display);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-right:6px}
+.r-why{margin:0;max-width:62ch}
+.willis{font-family:var(--f-mono);font-size:12.5px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:8px 10px;overflow-x:auto;white-space:nowrap}
+
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th{font-family:var(--f-display);font-weight:600;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.num{font-family:var(--f-mono);font-size:13px;text-align:right;white-space:nowrap}
+th.num{text-align:right}
+.mem{display:flex;align-items:center;gap:8px;font-weight:500}
+.mem small{color:var(--muted);font-weight:400}
+.chip{display:inline-block;font-family:var(--f-display);font-weight:700;font-size:11.5px;letter-spacing:.1em;padding:2px 7px;border-radius:3px;border:1px solid var(--ink);line-height:1.4}
+.chip.input{background:var(--ink);color:var(--bg)}
+.chip.held{background:repeating-linear-gradient(135deg,var(--ink) 0 2px,transparent 2px 5px);color:var(--ink);text-shadow:0 0 3px var(--bg),0 0 3px var(--bg)}
+.chip.output{background:transparent;color:var(--ink);border-width:2px;padding:1px 6px}
+.chip.free,.chip.idle{border-color:var(--line);color:var(--muted)}
+.chip.locked{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.dir{font-size:16px;line-height:1}
+
+.chart{display:flex;flex-direction:column;gap:12px}
+.chart h2{font-family:var(--f-display);font-weight:700;font-size:26px;margin:0}
+.chart p{margin:0;color:var(--muted);max-width:70ch}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+.scroll table{min-width:640px}
+.scroll tr.active td{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.scroll tr:last-child td{border-bottom:0}
+.load{font:600 13px/1 var(--f-body);padding:7px 11px;border-radius:4px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.load:hover{border-color:var(--ink)}
+.laws{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 24px;margin:0;padding:0;list-style:none}
+.laws li{border-left:2px solid var(--line);padding-left:10px}
+.laws b{font-family:var(--f-display);font-weight:600;letter-spacing:.04em;font-size:15px;display:block}
+.note{font-size:13px;color:var(--muted)}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Automatic transmission · simple planetary gearset</div>
+    <h1>Planetary Gear Lab</h1>
+    <p class="lede">Pick an input member and its direction, hold one member, and watch what the remaining member does. Sun 36 teeth, four planets 24 teeth each, ring 84 teeth.</p>
+  </header>
+
+  <section class="bench">
+    <div class="stage">
+      <div class="canvas-box"><canvas id="cv" aria-label="Animated planetary gearset"></canvas></div>
+      <div class="playbar">
+        <button class="btn" id="play" type="button">Pause</button>
+        <label for="spd">Speed</label>
+        <input id="spd" type="range" min="0.2" max="3" step="0.1" value="1">
+        <button class="btn ghost" id="reset" type="button">Reset marks</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="step">
+        <div class="step-h"><span class="n">1</span>Input member</div>
+        <div class="seg" id="inSeg" role="radiogroup" aria-label="Input member"></div>
+      </div>
+      <div class="step">
+        <div class="step-h"><span class="n">2</span>Input direction</div>
+        <div class="seg" id="dirSeg" role="radiogroup" aria-label="Input direction">
+          <label><input type="radio" name="dir" id="dirCW" value="1" checked><span><span class="dir">↻</span>Clockwise</span></label>
+          <label><input type="radio" name="dir" id="dirCCW" value="-1"><span><span class="dir">↺</span>Counterclockwise</span></label>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-h"><span class="n">3</span>Held member</div>
+        <div class="seg" id="heldSeg" role="radiogroup" aria-label="Held member"></div>
+        <div class="out-line" id="outLine"></div>
+      </div>
+
+      <div class="result" aria-live="polite">
+        <div class="r-top">
+          <div class="r-mode" id="rMode"></div>
+          <div class="r-ratio" id="rRatio"></div>
+        </div>
+        <p class="r-why" id="rWhy"></p>
+        <div class="willis" id="willis"></div>
+        <table>
+          <thead><tr><th>Member</th><th>Role</th><th class="num">Turning</th><th class="num">rpm*</th></tr></thead>
+          <tbody id="memBody"></tbody>
+        </table>
+        <div class="note">*With the input turning 1,000 rpm. Planet speed is its spin on its own pin, measured relative to the carrier.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="chart">
+    <h2>The combinations</h2>
+    <p>Every result a simple planetary can give. Load a row to see it on the gearset; your chosen input direction carries over.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Input</th><th>Held</th><th>Output</th><th>Result</th><th>Direction</th><th class="num">Ratio</th><th></th></tr></thead>
+        <tbody id="refBody"></tbody>
+      </table>
+    </div>
+    <ul class="laws">
+      <li><b>Carrier is the output</b>Reduction. Output turns slower than input, same direction.</li>
+      <li><b>Carrier is the input</b>Overdrive. Output turns faster than input, same direction.</li>
+      <li><b>Carrier is held</b>Reverse. Planets become idlers and flip the direction.</li>
+      <li><b>Two members locked</b>Direct drive, 1:1. The set turns as one block.</li>
+      <li><b>Nothing held</b>Neutral. No reaction member, so no torque reaches the output.</li>
+    </ul>
+    <p class="note">The math behind every row: S × N<sub>sun</sub> + R × N<sub>ring</sub> = (S + R) × N<sub>carrier</sub>, where S and R are tooth counts and N is speed (clockwise positive).</p>
+  </section>
+</div>
+
+<script>
+(function(){
+const S=36, R=84, P=24, N=4;
+const NAMES={s:'Sun',c:'Carrier',r:'Ring'};
+const ORDER=['s','c','r'];
+const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const state={input:'s',dir:1,held:'r',playing:!reduceMotion,speed:1};
+const ang={s:0,c:0,r:0};
+
+/* ---------- kinematics ---------- */
+function solveThird(v){
+  if(v.s===undefined) v.s=((S+R)*v.c - R*v.r)/S;
+  else if(v.r===undefined) v.r=((S+R)*v.c - S*v.s)/R;
+  else if(v.c===undefined) v.c=(S*v.s + R*v.r)/(S+R);
+  return v;
+}
+function config(){
+  const others=ORDER.filter(x=>x!==state.input);
+  let output, free=null;
+  if(others.includes(state.held)) output=others.find(x=>x!==state.held);
+  else { output=others.includes('c')?'c':'r'; if(state.held==='none') free=others.find(x=>x!==output); }
+  const v={}; v[state.input]=state.dir;
+  if(state.held==='lock'){ v.s=v.c=v.r=state.dir; }
+  else if(state.held==='none'){ v[output]=0; solveThird(v); }
+  else { v[state.held]=0; solveThird(v); }
+  const planet = -(S/P)*(v.s - v.c); // spin relative to carrier
+  return {others,output,free,v,planet};
+}
+
+const DESC={
+  'sr':['Maximum reduction','The ring is held, so the planets walk around the inside of it. The sun pushes them along and they drag the carrier with them, slowly and in the same direction as the sun. This is the deepest reduction the set can make, the job it does in low gear.'],
+  'rs':['Minimum reduction','The sun is held, so the planets walk around the outside of it. The ring pushes them along and the carrier follows, a little slower than the ring and in the same direction.'],
+  'cr':['Maximum overdrive','The carrier forces the planets to walk around the held ring. Walking around the ring spins them on their pins, and they drive the small sun much faster than the carrier in the same direction.'],
+  'cs':['Minimum overdrive','The carrier forces the planets to walk around the held sun. They spin on their pins and push the ring ahead faster than the carrier, same direction. Most overdrive top gears work this way.'],
+  'sc':['Reverse, reduction','With the carrier held the planets cannot orbit. They only spin on fixed pins as idler gears, so the ring turns opposite the sun and slower. This is the classic reverse-gear arrangement.'],
+  'rc':['Reverse, overdrive','With the carrier held the planets act as idlers on fixed pins. The ring drives them, and they spin the small sun backward and faster than the ring.']
+};
+
+/* ---------- controls ---------- */
+const sw=k=>`<span class="sw" style="background:var(--${k==='s'?'sun':k==='c'?'carrier':'ring'})"></span>`;
+function buildInput(){
+  document.getElementById('inSeg').innerHTML=ORDER.map(k=>
+    `<label><input type="radio" name="in" id="in_${k}" value="${k}" ${state.input===k?'checked':''}><span>${sw(k)}${NAMES[k]}</span></label>`).join('');
+  document.querySelectorAll('input[name=in]').forEach(el=>el.addEventListener('change',e=>{
+    state.input=e.target.value;
+    if(!(state.held==='none'||state.held==='lock') && state.held===state.input) state.held=ORDER.find(x=>x!==state.input && x!=='c') || ORDER.find(x=>x!==state.input);
+    buildHeld(); update();
+  }));
+}
+function buildHeld(){
+  const others=ORDER.filter(x=>x!==state.input);
+  if(!(others.includes(state.held)||state.held==='none'||state.held==='lock')) state.held=others[0];
+  const opts=others.map(k=>[k,`${sw(k)}${NAMES[k]}`]).concat([['none','Nothing (neutral)'],['lock','Lock two together']]);
+  document.getElementById('heldSeg').innerHTML=opts.map(([k,l])=>
+    `<label><input type="radio" name="held" id="held_${k}" value="${k}" ${state.held===k?'checked':''}><span>${l}</span></label>`).join('');
+  document.querySelectorAll('input[name=held]').forEach(el=>el.addEventListener('change',e=>{state.held=e.target.value;update();}));
+}
+document.querySelectorAll('input[name=dir]').forEach(el=>el.addEventListener('change',e=>{state.dir=+e.target.value;update();}));
+const playBtn=document.getElementById('play');
+function syncPlay(){playBtn.textContent=state.playing?'Pause':'Play';}
+playBtn.addEventListener('click',()=>{state.playing=!state.playing;syncPlay();});
+document.getElementById('spd').addEventListener('input',e=>state.speed=+e.target.value);
+document.getElementById('reset').addEventListener('click',()=>{ang.s=ang.c=ang.r=0;});
+
+/* ---------- readout ---------- */
+const fmt=n=>{const r=Math.round(n); return (r===0?'0':r.toLocaleString('en-US'));};
+const dirTxt=v=>Math.abs(v)<1e-9?'Stopped':(v>0?'<span class="dir">↻</span> CW':'<span class="dir">↺</span> CCW');
+function update(){
+  const cf=config(), v=cf.v, inp=state.input, out=cf.output;
+  let mode, ratio, why;
+  if(state.held==='lock'){
+    mode='Direct drive'; ratio='1.00 : 1';
+    why='Clutching any two members together locks the whole gearset. The planets stop spinning on their pins and the sun, carrier, and ring all turn as one solid unit at input speed.';
+  } else if(state.held==='none'){
+    mode='Neutral'; ratio='—';
+    why=`Nothing is held, so there is no reaction member. The ${NAMES[out].toLowerCase()} has the vehicle's load on it and stays put, while the free ${NAMES[cf.free].toLowerCase()} just spins ${v[cf.free]>0?'clockwise':'counterclockwise'} and no torque gets through.`;
+  } else {
+    const d=DESC[inp+state.held]; mode=d[0]; why=d[1];
+    ratio=Math.abs(v[inp]/v[out]).toFixed(2)+' : 1';
+  }
+  document.getElementById('rMode').textContent=mode;
+  document.getElementById('rRatio').innerHTML='<small>Ratio</small>'+ratio;
+  document.getElementById('rWhy').textContent=why;
+  const heldTxt = state.held==='lock'?'two members clutched together':state.held==='none'?'nothing':NAMES[state.held].toLowerCase();
+  document.getElementById('outLine').innerHTML=`Holding ${heldTxt} makes the <b>${NAMES[out].toLowerCase()}</b> the output.`;
+  const k=1000;
+  document.getElementById('willis').textContent=
+    `${S}×(${fmt(v.s*k)}) + ${R}×(${fmt(v.r*k)}) = ${S+R}×(${fmt(v.c*k)})   sun · ring · carrier, rpm`;
+
+  const role=m=>{
+    if(state.held==='lock') return m===inp?'<span class="chip input">INPUT</span>':m===out?'<span class="chip output">OUTPUT</span>':'<span class="chip locked">LOCKED</span>';
+    if(m===inp) return '<span class="chip input">INPUT</span>';
+    if(m===state.held) return '<span class="chip held">HELD</span>';
+    if(m===out) return '<span class="chip output">OUTPUT</span>';
+    return '<span class="chip free">FREE</span>';
+  };
+  const rows=ORDER.map(m=>{
+    const label=m==='c'?'Carrier <small>4 pins</small>':`${NAMES[m]} <small>${m==='s'?S:R}T</small>`;
+    return `<tr><td><div class="mem">${sw(m)}${label}</div></td><td>${role(m)}</td><td class="num">${dirTxt(v[m])}</td><td class="num">${fmt(Math.abs(v[m]*k))}</td></tr>`;
+  });
+  rows.push(`<tr><td><div class="mem"><span class="sw" style="background:var(--planet)"></span>Planets <small>${P}T ×4</small></div></td><td>${Math.abs(cf.planet)<1e-9?'<span class="chip idle">NO SPIN</span>':'<span class="chip idle">ON PINS</span>'}</td><td class="num">${dirTxt(cf.planet)}</td><td class="num">${fmt(Math.abs(cf.planet*k))}</td></tr>`);
+  document.getElementById('memBody').innerHTML=rows.join('');
+
+  document.querySelectorAll('#refBody tr').forEach(tr=>tr.classList.toggle('active',tr.dataset.in===state.input&&tr.dataset.held===state.held));
+}
+
+/* ---------- reference chart ---------- */
+const REF=[['s','r'],['r','s'],['c','r'],['c','s'],['s','c'],['r','c'],['s','lock'],['s','none']];
+function buildRef(){
+  document.getElementById('refBody').innerHTML=REF.map(([i,h])=>{
+    const others=ORDER.filter(x=>x!==i);
+    let o, res, dir, ratio;
+    if(h==='lock'){o='Any';res='Direct drive';dir='Same';ratio='1.00 : 1';}
+    else if(h==='none'){o='—';res='Neutral';dir='—';ratio='—';}
+    else{
+      o=NAMES[others.find(x=>x!==h)];
+      const v={};v[i]=1;v[h]=0;solveThird(v);const ov=v[others.find(x=>x!==h)];
+      res=DESC[i+h][0]; dir=ov<0?'Reverse':'Same'; ratio=Math.abs(1/ov).toFixed(2)+' : 1';
+    }
+    const iTxt=h==='lock'?'Any':NAMES[i];
+    const hTxt=h==='lock'?'Two locked':h==='none'?'None':NAMES[h];
+    return `<tr data-in="${i}" data-held="${h}"><td>${iTxt}</td><td>${hTxt}</td><td>${o}</td><td>${res}</td><td>${dir}</td><td class="num">${ratio}</td><td><button class="load" type="button" data-in="${i}" data-held="${h}">Load</button></td></tr>`;
+  }).join('');
+  document.querySelectorAll('.load').forEach(b=>b.addEventListener('click',()=>{
+    state.input=b.dataset.in; state.held=b.dataset.held; buildInput(); buildHeld(); update();
+    document.querySelector('.canvas-box').scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'nearest'});
+  }));
+}
+
+/* ---------- drawing ---------- */
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+let W=0, dpr=1;
+function resize(){
+  const r=cv.getBoundingClientRect(); dpr=window.devicePixelRatio||1;
+  W=r.width; cv.width=Math.round(r.width*dpr); cv.height=Math.round(r.height*dpr);
+}
+new ResizeObserver(resize).observe(cv); resize();
+
+let C={};
+function readColors(){
+  const cs=getComputedStyle(document.documentElement);
+  ['bg','surface','ink','muted','line','sun','sun-fill','planet','planet-fill','carrier','carrier-fill','ring','ring-fill','hatch'].forEach(k=>C[k]=cs.getPropertyValue('--'+k).trim());
+  const pc=document.createElement('canvas'); pc.width=pc.height=8; const p=pc.getContext('2d');
+  p.strokeStyle=C.hatch; p.lineWidth=1.4; p.globalAlpha=.55;
+  p.beginPath(); p.moveTo(0,8); p.lineTo(8,0); p.moveTo(-2,2); p.lineTo(2,-2); p.moveTo(6,10); p.lineTo(10,6); p.stroke();
+  C.pattern=ctx.createPattern(pc,'repeat');
+}
+readColors();
+if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change',readColors);
+new MutationObserver(readColors).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+function gearPath(cx,cy,teeth,rp,m,a0,internal){
+  const tau=2*Math.PI/teeth;
+  const rT=internal?rp-m:rp+m, rB=internal?rp+1.25*m:rp-1.25*m;
+  const pt=(a,r,first)=>{const x=cx+r*Math.cos(a), y=cy+r*Math.sin(a); first?ctx.moveTo(x,y):ctx.lineTo(x,y);};
+  for(let k=0;k<teeth;k++){
+    const a=a0+k*tau;
+    pt(a-.5*tau,rB,k===0); pt(a-.25*tau,rB); pt(a-.11*tau,rT); pt(a+.11*tau,rT); pt(a+.25*tau,rB);
+  }
+  ctx.closePath();
+}
+function arcArrow(cx,cy,r,mid,span,dir,color,lw){
+  if(Math.abs(dir)<1e-9) return;
+  const sg=dir>0?1:-1, st=mid-sg*span/2, en=mid+sg*span/2;
+  ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=lw; ctx.lineCap='round';
+  ctx.beginPath(); ctx.arc(cx,cy,r,st,en,sg<0); ctx.stroke();
+  const px=cx+r*Math.cos(en), py=cy+r*Math.sin(en);
+  const tx=-Math.sin(en)*sg, ty=Math.cos(en)*sg, nx=Math.cos(en), ny=Math.sin(en), h=lw*3.2;
+  ctx.beginPath(); ctx.moveTo(px+tx*h,py+ty*h); ctx.lineTo(px+nx*h*.75,py+ny*h*.75); ctx.lineTo(px-nx*h*.75,py-ny*h*.75); ctx.closePath(); ctx.fill();
+}
+
+function draw(cf){
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,W);
+  const cx=W/2, cy=W/2, m=W/2/50;
+  const rs=m*S/2, rpl=m*P/2, rr=m*R/2, rc=rs+rpl, rOut=rr+1.25*m+3*m;
+  const v=cf.v, held=state.held, lock=held==='lock';
+  const lw=Math.max(1,m*.22);
+
+  // ring
+  ctx.beginPath(); ctx.arc(cx,cy,rOut,0,Math.PI*2); gearPath(cx,cy,R,rr,m,ang.r,true);
+  ctx.fillStyle=C['ring-fill']; ctx.fill('evenodd'); ctx.strokeStyle=C.ring; ctx.lineWidth=lw; ctx.stroke();
+  if(held==='r'){ ctx.beginPath(); ctx.arc(cx,cy,rOut,0,Math.PI*2); gearPath(cx,cy,R,rr,m,ang.r,true); ctx.fillStyle=C.pattern; ctx.fill('evenodd');
+    ctx.beginPath(); ctx.arc(cx,cy,rOut+m*.6,0,Math.PI*2); ctx.strokeStyle=C.ink; ctx.lineWidth=m*1.2; ctx.stroke(); }
+  // ring index mark
+  ctx.fillStyle=C.ring; ctx.beginPath(); ctx.arc(cx+(rr+2.7*m)*Math.cos(ang.r),cy+(rr+2.7*m)*Math.sin(ang.r),m*.9,0,Math.PI*2); ctx.fill();
+
+  // carrier plate (behind planets)
+  const pins=[]; for(let i=0;i<N;i++){const a=ang.c+i*Math.PI/2; pins.push([cx+rc*Math.cos(a),cy+rc*Math.sin(a),a]);}
+  ctx.beginPath(); ctx.arc(cx,cy,rr-3.2*m,0,Math.PI*2); ctx.arc(cx,cy,rs+2.4*m,0,Math.PI*2,true);
+  ctx.fillStyle=C['carrier-fill']; ctx.globalAlpha=.55; ctx.fill(); ctx.globalAlpha=1;
+  ctx.strokeStyle=C.carrier; ctx.lineWidth=lw; ctx.stroke();
+  if(held==='c'){ ctx.beginPath(); ctx.arc(cx,cy,rr-3.2*m,0,Math.PI*2); ctx.arc(cx,cy,rs+2.4*m,0,Math.PI*2,true); ctx.fillStyle=C.pattern; ctx.fill(); }
+  ctx.beginPath(); pins.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath();
+  ctx.strokeStyle=C.carrier; ctx.lineWidth=m*1.3; ctx.globalAlpha=.5; ctx.stroke(); ctx.globalAlpha=1;
+  arcArrow(cx,cy,rc,ang.c+Math.PI/4,.42,lock?state.dir:v.c,C.carrier,m*.55);
+  arcArrow(cx,cy,rc,ang.c+Math.PI*5/4,.42,lock?state.dir:v.c,C.carrier,m*.55);
+
+  // sun
+  gearPath(cx,cy,S,rs,m,ang.s,false); ctx.fillStyle=C['sun-fill']; ctx.fill(); ctx.strokeStyle=C.sun; ctx.lineWidth=lw; ctx.stroke();
+  if(held==='s'){ gearPath(cx,cy,S,rs,m,ang.s,false); ctx.fillStyle=C.pattern; ctx.fill(); }
+  ctx.fillStyle=C.sun; ctx.beginPath(); ctx.arc(cx+13.5*m*Math.cos(ang.s),cy+13.5*m*Math.sin(ang.s),m*.9,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx,cy,m*3.2,0,Math.PI*2); ctx.fillStyle=C.surface; ctx.fill(); ctx.strokeStyle=C.sun; ctx.lineWidth=lw; ctx.stroke();
+  arcArrow(cx,cy,m*8.5,-Math.PI/2,1.5,v.s,C.sun,m*.6);
+
+  // planets
+  pins.forEach(([px,py,a],i)=>{
+    const phase=i*Math.PI/2+Math.PI+Math.PI/P;
+    const th=phase+ang.c-(S/P)*(ang.s-ang.c);
+    gearPath(px,py,P,rpl,m,th,false); ctx.fillStyle=C['planet-fill']; ctx.fill(); ctx.strokeStyle=C.planet; ctx.lineWidth=lw; ctx.stroke();
+    ctx.strokeStyle=C.planet; ctx.lineWidth=m*.45; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(px+3.2*m*Math.cos(th),py+3.2*m*Math.sin(th)); ctx.lineTo(px+9*m*Math.cos(th),py+9*m*Math.sin(th)); ctx.stroke();
+    arcArrow(px,py,rpl*.55,a+Math.PI,1.3,cf.planet,C.planet,m*.42);
+    // pin (belongs to carrier)
+    ctx.beginPath(); ctx.arc(px,py,m*2.2,0,Math.PI*2); ctx.fillStyle=C.carrier; ctx.fill();
+    ctx.beginPath(); ctx.arc(px,py,m*.8,0,Math.PI*2); ctx.fillStyle=C.surface; ctx.fill();
+  });
+
+  // ring direction arrow (fixed position, outside)
+  arcArrow(cx,cy,rOut+2.4*m,-Math.PI/4,.5,v.r,C.ring,m*.6);
+  arcArrow(cx,cy,rOut+2.4*m,Math.PI*3/4,.5,v.r,C.ring,m*.6);
+}
+
+let last=performance.now(), cf=config();
+const _upd=update; update=function(){_upd(); cf=config();};
+function frame(t){
+  const dt=Math.min(.05,(t-last)/1000); last=t;
+  if(state.playing){
+    const w=0.9*state.speed*dt; // rad/s of input
+    ang.s+=cf.v.s*w; ang.c+=cf.v.c*w; ang.r+=cf.v.r*w;
+  }
+  if(W>0) draw(cf);
+  requestAnimationFrame(frame);
+}
+
+buildInput(); buildHeld(); buildRef(); update(); syncPlay();
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body></html>
